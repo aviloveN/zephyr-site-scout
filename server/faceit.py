@@ -79,12 +79,14 @@ class Faceit:
     def match(self,match_id):
         return self.get('/matches/'+match_id,ttl=10)
 
-    def stats(self,player_id):
+    def stats(self,player_id,before=None):
         if not re.fullmatch(r'[a-f0-9-]{36}',player_id,re.I):
             return {'items':[]}
-        return self.get('/players/'+player_id+'/games/cs2/stats?offset=0&limit=30',ttl=600)
+        cutoff='&to='+str(int(before*1000)-1) if before is not None else ''
+        return self.get('/players/'+player_id+'/games/cs2/stats?offset=0&limit=30'+cutoff,ttl=600)
 
-    def history(self,player_id):
+    def history(self,player_id,before=None):
         if not re.fullmatch(r'[a-f0-9-]{36}',player_id,re.I):
             return {'items':[]}
-        return self.get('/players/'+player_id+'/history?game=cs2&offset=0&limit=20',ttl=300)
+        cutoff='&to='+str(int(before)-1) if before is not None else ''
+        return self.get('/players/'+player_id+'/history?game=cs2&offset=0&limit=20'+cutoff,ttl=300)

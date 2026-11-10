@@ -32,7 +32,7 @@ class App:
         if self.config_path.exists():
             self.settings=json.loads(self.config_path.read_text(encoding='utf-8'))
         else:
-            self.settings={'local_token':secrets.token_urlsafe(32),'faceit_key':'','nickname':'','auto_demos':True}
+            self.settings={'local_token':secrets.token_urlsafe(32),'faceit_key':'','nickname':'','auto_demos':False}
             self.save_config({})
         self.store=Store(self.data_dir/'evidence.sqlite3')
         self.api=Faceit(self.store,lambda:self.settings.get('faceit_key') or os.environ.get('FACEIT_API_KEY',''))
@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(401,{'error':'Pair this browser with the local helper first.'})
         if path=='/api/status':
             return self.send_json(200,{'version':VERSION,'configured':bool(self.app.api.key_getter()),'nickname':self.app.settings.get('nickname',''),
-                'auto_demos':self.app.settings.get('auto_demos',True),'parser_available':self.app.warmer.available(),
+                'auto_demos':self.app.settings.get('auto_demos',False),'parser_available':self.app.warmer.available(),
                 'cache':self.app.store.counts(),'pending_demos':len(self.app.warmer.pending),'events':self.app.warmer.events})
         if path.startswith('/api/jobs/'):
             job=self.app.jobs.get(path.split('/')[-1])

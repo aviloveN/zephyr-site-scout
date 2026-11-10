@@ -51,11 +51,17 @@ def finite_number(value):
     except (TypeError, ValueError):
         return None
 
-def recent_stats(items, selected_map=None):
+def recent_stats(items, selected_map=None, before=None):
     """Known field names only. A generic sniper statistic is never called AWP."""
     rows = []
     for item in items:
         row = item.get('stats', item)
+        if before is not None:
+            finished=finite_number(row.get('Match Finished At'))
+            if finished and finished>1e12:
+                finished/=1000
+            if finished is None or finished>=before:
+                continue
         if selected_map and map_name(row.get('Map')) != selected_map:
             continue
         rows.append(row)

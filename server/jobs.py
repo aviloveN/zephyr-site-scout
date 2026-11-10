@@ -41,8 +41,11 @@ class Jobs:
             result=self.public(job)
             if job.get('_players') and job.get('map'):
                 # Newly imported demos become visible without restarting the job.
-                result['brief']=build_brief(job['_players'],self.store.reports(job['map']),job['map'],job.get('_stats'))
+                result['brief']=build_brief(job['_players'],self.evidence(job),job['map'],job.get('_stats'))
             return result
+
+    def evidence(self,job):
+        return self.store.reports(job.get('map'),before=job.get('as_of'),exclude_match=job['match_id'])
 
     def update(self,job,**values):
         with self.lock:
@@ -57,6 +60,11 @@ class Jobs:
                 raise FaceitError('This match is not CS2.',400)
             teams=[{'id':key,'name':value.get('name') or value.get('nickname') or key,'players':value.get('roster',[])} for key,value in (match.get('teams') or {}).items()]
             self.update(job,teams=teams,match_status=match.get('status','UNKNOWN'))
+            if str(match.get('status','')).upper()=='FINISHED':
+                started=match.get('started_at')
+                if not isinstance(started,(int,float)) or started<=0:
+                    raise FaceitError('This completed match lacks a start timestamp, so a fair historical briefing cannot be reconstructed.',409)
+                self.update(job,historical=True,as_of=started)
             chosen=job['team_id']
             nickname=str(self.config().get('nickname','')).casefold()
             if not chosen and nickname:
@@ -69,22 +77,22 @@ class Jobs:
             opponents=next(t for t in teams if t['id']!=chosen)
             selected=job['map'] or picked_map(match)
             self.update(job,team_id=chosen,opponent_name=opponents['name'],map=selected,_players=opponents['players'],_stats={})
-            brief=build_brief(opponents['players'],self.store.reports(selected),selected)
+            brief=build_brief(opponents['players'],self.evidence(job),selected)
             self.update(job,brief=brief,status='partial',first_brief_ms=round((time.time()-job['created_at'])*1000))
             if self.warmer and selected:
-                self.warmer.schedule(opponents['players'],selected,job['match_id'])
-            futures={self.io.submit(self.api.stats,p.get('player_id','')):p for p in opponents['players']}
+                self.warmer.schedule(opponents['players'],selected,job['match_id'],before=job.get('as_of'))
+            futures={self.io.submit(self.api.stats,p.get('player_id',''),**({'before':job['as_of']} if job.get('as_of') else {})):p for p in opponents['players']}
             statistics={}
             errors=[]
             for future in as_completed(futures):
                 p=futures[future]
                 try:
                     data=future.result()
-                    statistics[p['player_id']]={'overall':recent_stats(data.get('items',[])),
-                                               'map':recent_stats(data.get('items',[]),selected) if selected else {}}
+                    statistics[p['player_id']]={'overall':recent_stats(data.get('items',[]),before=job.get('as_of')),
+                                               'map':recent_stats(data.get('items',[]),selected,before=job.get('as_of')) if selected else {}}
                 except Exception as e:
                     errors.append(p.get('nickname','Player')+': '+str(e))
-                brief=build_brief(opponents['players'],self.store.reports(selected),selected,statistics)
+                brief=build_brief(opponents['players'],self.evidence(job),selected,statistics)
                 self.update(job,_stats=statistics,brief=brief,errors=errors)
             self.update(job,status='ready' if selected else 'awaiting_map',brief=brief)
         except (FaceitError,ValueError) as e:

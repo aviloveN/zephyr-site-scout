@@ -49,7 +49,7 @@
       }
       if (!job.brief) { status('Identifying the lobby and checking cached evidence...'); return; }
       const b=job.brief;
-      const overline=el('div','scout-overline',job.example ? 'LAYOUT PREVIEW' : 'YOUR UPCOMING MATCH');
+      const overline=el('div','scout-overline',job.example ? 'LAYOUT PREVIEW' : (job.historical ? 'HISTORICAL PRE-MATCH TEST' : 'YOUR UPCOMING MATCH'));
       const heading=el('div','scout-heading');
       heading.append(el('h2','scout-title',mapLabel(b.map)),el('span','scout-badge',job.status==='partial'?'Updating':'Historical evidence'));
       body.append(overline,heading,el('p','scout-subtitle',job.opponent_name || 'Opponent briefing'));
@@ -59,6 +59,7 @@
         const metric=el('div','scout-metric');metric.append(el('strong','',value),el('span','',label));metrics.append(metric);
       }
       body.append(metrics);
+      if(job.historical) body.append(el('p','scout-notice','Held-out test: only matches finished before '+new Date(job.as_of*1000).toLocaleString()+' are used. This match and later games are excluded.'));
       if (!b.map) body.append(el('p','scout-notice','The map has not been confirmed. Site evidence appears once FACEIT publishes the pick, or you select the map below.'));
       const findings=el('div','scout-findings');
       for (const f of b.findings || []) {

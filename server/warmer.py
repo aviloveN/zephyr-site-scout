@@ -43,38 +43,42 @@ class Warmer:
     def available(self):
         return importlib.util.find_spec('demoparser2') is not None
 
-    def schedule(self,players,selected_map,current_match):
-        if not self.config().get('auto_demos',True) or not self.available():
+    def schedule(self,players,selected_map,current_match,before=None):
+        if not self.config().get('auto_demos',False) or not self.available():
             return
         for p in players:
             player_id=p.get('player_id','')
-            key=(player_id,selected_map)
+            key=(player_id,selected_map,int(before) if before else None)
             with self.lock:
                 if key in self.pending or len(self.pending)>=10:
                     continue
-                if self.store.cache_get('warmed:'+player_id+':'+selected_map):
+                if self.store.cache_get('warmed:'+player_id+':'+selected_map+':'+str(before)):
                     continue
                 self.pending.add(key)
-            self.pool.submit(self.warm_player,p,selected_map,current_match,key)
+            self.pool.submit(self.warm_player,p,selected_map,current_match,key,before)
 
-    def warm_player(self,player,selected_map,current_match,key):
+    def warm_player(self,player,selected_map,current_match,key,before=None):
         try:
-            history=self.api.history(player['player_id']).get('items',[])
+            history=self.api.history(player['player_id'],**({'before':before} if before else {})).get('items',[])
             inspected=0
             imported=0
             for old in history:
                 match_id=old.get('match_id','')
                 if match_id==current_match or self.store.has_report(match_id):
                     continue
-                if old.get('status')!='FINISHED':
+                if str(old.get('status','')).upper()!='FINISHED':
                     continue
                 if not old.get('finished_at') or old['finished_at']<time.time()-30*86400:
+                    continue
+                if before is not None and old['finished_at']>=before:
                     continue
                 if inspected>=6 or imported>=1:
                     break
                 inspected+=1
                 details=self.api.match(match_id)
-                if details.get('status')!='FINISHED':
+                if str(details.get('status','')).upper()!='FINISHED':
+                    continue
+                if before is not None and details.get('finished_at',float('inf'))>=before:
                     continue
                 from .faceit import picked_map
                 old_map=picked_map(details)
@@ -90,7 +94,7 @@ class Warmer:
                     continue
                 self.download_and_import(urls[0],match_id,details['finished_at'])
                 imported+=1
-            self.store.cache_set('warmed:'+player['player_id']+':'+selected_map,True,600)
+            self.store.cache_set('warmed:'+player['player_id']+':'+selected_map+':'+str(before),True,600)
         except Exception as e:
             self.event('Demo evidence unavailable for '+player.get('nickname','player')+': '+str(e)[:180])
         finally:

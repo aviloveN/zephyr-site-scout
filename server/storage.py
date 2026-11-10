@@ -28,12 +28,17 @@ class Store:
             self.db.execute('DELETE FROM reports WHERE played_at < ?',(time.time()-30*86400,))
             self.db.execute('DELETE FROM cache WHERE expires < ?',(time.time(),))
 
-    def reports(self,map_id=None):
+    def reports(self,map_id=None,before=None,exclude_match=None):
         with self.lock:
+            clauses=['played_at>?']
+            params=[time.time()-30*86400]
             if map_id:
-                rows=self.db.execute('SELECT value FROM reports WHERE map=? AND played_at>? ORDER BY played_at DESC LIMIT 200',(map_id,time.time()-30*86400)).fetchall()
-            else:
-                rows=self.db.execute('SELECT value FROM reports WHERE played_at>? ORDER BY played_at DESC LIMIT 200',(time.time()-30*86400,)).fetchall()
+                clauses.append('map=?');params.append(map_id)
+            if before is not None:
+                clauses.append('played_at<?');params.append(before)
+            if exclude_match:
+                clauses.append('match_id!=?');params.append(exclude_match)
+            rows=self.db.execute('SELECT value FROM reports WHERE '+' AND '.join(clauses)+' ORDER BY played_at DESC LIMIT 200',params).fetchall()
             return [json.loads(r[0]) for r in rows]
 
     def has_report(self,match_id):

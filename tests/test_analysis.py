@@ -6,10 +6,10 @@ import unittest
 from pathlib import Path
 from server.analysis import build_brief,map_name,recent_stats,site_summary,position_profile,wilson,zone_for
 from server.demo_import import normalize_replay,validate_report,identity,buy_type
-from server.faceit import match_id_from,picked_map
+from server.faceit import Faceit,match_id_from,picked_map
 from server.jobs import Jobs
 from server.storage import Store
-from server.warmer import approved_url
+from server.warmer import Warmer,approved_url
 from tests.fixtures import ROSTER,MATCH,evidence,FakeFaceit
 
 class AnalysisTests(unittest.TestCase):
@@ -61,6 +61,14 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(stats['sniper_kills'],8);self.assertIsNone(stats['awp_kills']);self.assertIsNone(stats['adr'])
     def test_stats_map_filter(self):
         self.assertEqual(recent_stats([{'stats':{'Map':'Inferno'}}],'de_mirage')['matches'],0)
+    def test_historical_stats_exclude_target_future_and_undated_rows(self):
+        before=1794000000
+        rows=[{'stats':{'Map':'Mirage','Match Finished At':(before-100)*1000,'Kills':'17'}},
+              {'stats':{'Map':'Mirage','Match Finished At':before*1000,'Kills':'99'}},
+              {'stats':{'Map':'Mirage','Match Finished At':(before+100)*1000,'Kills':'99'}},
+              {'stats':{'Map':'Mirage','Kills':'99'}}]
+        stats=recent_stats(rows,'de_mirage',before=before)
+        self.assertEqual(stats['matches'],1);self.assertEqual(stats['kills'],17)
     def test_bad_dates_or_duplicate_rounds_rejected(self):
         report=evidence();report['played_at']=time.time()+86400
         with self.assertRaises(ValueError):validate_report(report)
@@ -122,6 +130,48 @@ class StorageAndJobsTests(unittest.TestCase):
     def test_store_deduplicates_demos(self):
         report=evidence();self.store.put_report(report);self.store.put_report(report)
         self.assertEqual(self.store.counts()['demos'],1)
+    def test_evidence_cutoff_and_target_exclusion(self):
+        older=evidence(1);future=evidence(2);target=evidence(3)
+        before=time.time()-1800
+        older['played_at']=before-100;future['played_at']=before+100
+        target['played_at']=before-200;target['match_id']=MATCH
+        for report in (older,future,target):self.store.put_report(report)
+        result=self.store.reports('de_mirage',before=before,exclude_match=MATCH)
+        self.assertEqual([r['match_id'] for r in result],[older['match_id']])
+    def test_historical_job_is_held_out(self):
+        before=time.time()-1800
+        class HistoricalApi(FakeFaceit):
+            def match(self,match_id):
+                m=super().match(match_id);m.update(status='FINISHED',started_at=before);return m
+            def stats(self,player_id,before=None):
+                return {'items':[{'stats':{'Map':'de_mirage','Match Finished At':(before-100)*1000,'Kills':'17'}},
+                                 {'stats':{'Map':'de_mirage','Match Finished At':(before+100)*1000,'Kills':'99'}}]}
+        self.store.put_report(evidence(1))
+        later=evidence(2);later['played_at']=before+100;self.store.put_report(later)
+        jobs=Jobs(self.store,HistoricalApi(),lambda:{'nickname':'Sonu'})
+        job=jobs.start(MATCH);jobs.pool.shutdown(wait=True);jobs.io.shutdown(wait=True)
+        result=jobs.get(job['id'])
+        self.assertTrue(result['historical']);self.assertEqual(result['as_of'],before)
+        self.assertEqual(result['brief']['players'][0]['position']['rounds'],24)
+        self.assertEqual(result['brief']['players'][0]['stats']['map']['kills'],17)
+    def test_history_and_stats_use_correct_timestamp_units(self):
+        api=Faceit(self.store,lambda:'test')
+        paths=[]
+        api.get=lambda path,ttl: paths.append(path) or {}
+        player='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        api.stats(player,before=1794000000);api.history(player,before=1794000000)
+        self.assertIn('to=1793999999999',paths[0]);self.assertIn('to=1793999999',paths[1])
+    def test_demo_warmer_accepts_actual_lowercase_history_status(self):
+        old=evidence(1);before=time.time()-1800
+        class HistoryApi:
+            def history(self,player_id,before=None):
+                return {'items':[{'match_id':old['match_id'],'status':'finished','finished_at':old['played_at']}]}
+            def match(self,match_id):
+                return {'status':'FINISHED','finished_at':old['played_at'],'voting':{'map':{'pick':['de_mirage']}},'demo_url':['https://demos.faceit.net/test.dem.gz']}
+        warmer=Warmer(self.store,HistoryApi(),lambda:{},Path.cwd(),Path(self.tmp.name))
+        imports=[];warmer.download_and_import=lambda url,mid,at:imports.append(mid)
+        warmer.warm_player({'player_id':'fixture','nickname':'Player'},'de_mirage',MATCH,('fixture','de_mirage',before),before)
+        self.assertEqual(imports,[old['match_id']]);warmer.pool.shutdown()
     def test_positions_available_before_all_stats_finish(self):
         class SlowApi(FakeFaceit):
             def stats(self,player):time.sleep(.2);return super().stats(player)

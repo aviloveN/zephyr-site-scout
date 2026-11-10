@@ -35,6 +35,10 @@ Run the helper on the **same computer** as the FACEIT browser. Running it on you
 
 This is a working personal first version, not a populated global scouting service. You need your own FACEIT developer key and historical demo coverage. The archive contains **no real player database**. With a cold cache, the first briefing may show recent statistics and missing position evidence until demos become available. A reliable 15 to 30 second site briefing for arbitrary opponents has **not** been demonstrated.
 
+**Current live-use gap:** arbitrary opponents' precomputed position profiles are not connected. Local demo imports support development and accuracy checks, but they do not meet the requirement for automatic site analysis during veto and warmup. Match-triggered demo retrieval is off by default. The next data milestone is a verified source or populated service of already-processed profiles.
+
+Completed-match tests exclude the target match and any evidence finished after its start. API statistics with missing timestamps are also excluded from those historical tests, so the result cannot silently use later games.
+
 The automatic downloader uses only completed matches and official API demo links. If those links are absent, expired, restricted or on a host outside the supported FACEIT/CDN allowlist, the app records the problem and leaves the evidence unavailable. It does not read FACEIT login cookies or use private endpoints. Importing demos is the supported fallback.
 
 Map support is strongest for **Mirage, Dust2, Inferno and Ancient**, with conservative named-area mappings. On the other selectable maps, explicit `BombsiteA`/`BombsiteB` labels work; unrecognised support areas remain unknown. Spawn-based position prediction, detailed rotation timings, utility scoring and opponent-skill-adjusted site models are not implemented in v0.1.

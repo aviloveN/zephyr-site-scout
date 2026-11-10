@@ -4,7 +4,7 @@ Built on 10 November 2026.
 
 ## Verified
 
-- All 39 Python analysis, job, persistence and HTTP protocol regression checks passed.
+- All 44 Python analysis, job, persistence and HTTP protocol regression checks passed, including target-match exclusion and historical timestamp filtering.
 - JavaScript syntax checks on every extension script.
 - The unpacked Manifest V3 extension loads in a disposable Chrome instance.
 - Browser renders five-player example reports on desktop and a 390-pixel viewport without horizontal overflow.
@@ -17,7 +17,11 @@ Built on 10 November 2026.
 
 ## Not verified yet
 
-- Live authenticated requests using the user's own FACEIT developer key.
+- Authenticated FACEIT match and player-statistic retrieval was verified locally after the user saved their key. No key is committed to this repository.
+- Real API history returns lowercase `finished`; the demo filter now accepts it.
+- Public API demo URLs encountered during the live test did not resolve. The logged-in website provided an authenticated replay download; that manual path is only suitable for validation. A data source for precomputed, arbitrary-player position profiles remains unverified.
+
+## Still not verified
 - Automatic official demo downloads from their matchmaking history.
 - Real-match warmup latency and the percentage of opponents with enough position coverage.
 - Prediction accuracy against manually reviewed FACEIT matches.

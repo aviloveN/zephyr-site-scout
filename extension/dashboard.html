@@ -10,7 +10,7 @@
       <hr><h2>FACEIT connection</h2><label class="field">Your FACEIT nickname<input id="nickname" autocomplete="off" placeholder="Your exact nickname"><small>Selects your team automatically when it appears in the roster.</small></label>
       <label class="field">FACEIT server-side Data API key<input id="faceitKey" type="password" autocomplete="off" placeholder="Saved only in your local helper"><small>Leave blank to keep a saved key. Never paste this key in chat.</small></label>
       <p class="setup-help"><a href="https://developers.faceit.com/" target="_blank" rel="noopener noreferrer">Open FACEIT Developer Portal</a>. Create an app and a server-side Data API key.</p>
-      <label class="checkbox"><input type="checkbox" id="autoDemos" checked><span>Attempt bounded background analysis of accessible completed demos.</span></label>
+      <label class="checkbox"><input type="checkbox" id="autoDemos"><span>Attempt background demo analysis when opening a match. This can exceed warmup time.</span></label>
       <button id="saveConfig" class="scout-button">Save connection</button><div id="configStatus" class="app-status" role="status"></div>
     </section>
     <section class="setup-card"><h2>Your evidence cache</h2><div class="app-counter-row"><div><strong id="demoCount">0</strong><span>completed demos</span></div><div><strong id="playerCount">0</strong><span>players observed</span></div></div><p id="parserStatus">Checking demo support...</p><p>Missing official demo links can be filled by importing a completed demo downloaded from FACEIT.</p>
