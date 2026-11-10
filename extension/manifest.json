@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Site Scout for FACEIT",
+  "version": "0.1.0",
+  "description": "A pre-match map briefing with usual CT positions, site evidence and honest coverage notices. Works alongside GRIND.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_title": "Open Site Scout setup"},
+  "options_page": "dashboard.html",
+  "content_scripts": [{
+    "matches": ["https://www.faceit.com/*", "https://faceit.com/*"],
+    "js": ["ui.js", "content.js"],
+    "run_at": "document_idle"
+  }],
+  "web_accessible_resources": [{"resources": ["styles.css"], "matches": ["https://www.faceit.com/*", "https://faceit.com/*"]}],
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' http://127.0.0.1:8765"}
+}

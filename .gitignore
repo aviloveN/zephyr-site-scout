@@ -1,0 +1,15 @@
+data/
+.venv/
+__pycache__/
+*.pyc
+*.dem
+*.dem.gz
+*.dem.bz2
+*.dem.zst
+*.sqlite3*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
