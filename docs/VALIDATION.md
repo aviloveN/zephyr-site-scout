@@ -15,7 +15,7 @@ Built on 10 November 2026.
 - A zstd-compressed copy of that replay completed the full import, subprocess extraction, validation and temporary database write in 1.27 seconds on the build Mac. This is a local-file benchmark, not a real-match download or briefing latency claim.
 - The real replay was used only in temporary QA files. No invented current date or fixture player data was inserted into a user's live evidence cache.
 
-## Not verified yet
+## Live integration findings
 
 - Authenticated FACEIT match and player-statistic retrieval was verified locally after the user saved their key. No key is committed to this repository.
 - Real API history returns lowercase `finished`; the demo filter now accepts it.
